@@ -1,0 +1,19 @@
+.DS_Store
+ize: 256.fuse*
+*.pth
+*.pyc
+debug*
+.idea/
+/inputs/
+/logs/
+/outputs/
+/datasets/
+/results/
+/pretrained_models/
+*/__pycache_/
+*/*.pyc
+*/**/*.pyc
+*/**/**/*.pyc
+*/**/**/**/*.pyc
+*/**/**/**/**/*.pyc
+

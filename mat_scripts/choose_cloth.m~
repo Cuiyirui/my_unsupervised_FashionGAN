@@ -1,0 +1,20 @@
+file_path='/root/Desktop/GAN/dataset/picture_2w/val/';
+list_path='/root/Desktop/GAN/dataset/picture_2w_cloth/train/';
+trainA_path='/root/Desktop/GAN/dataset/test_demo_split2/test_demo_contour/testA/';
+trainB_path='/root/Desktop/GAN/dataset/test_demo_split2/test_demo_contour/testB/';
+
+img_path_list=dir(strcat(trainA_path,'*.png'));
+for i = 1:length(img_path_list)
+    contour_name = strcat(trainA_path,num2str(i),'.png');
+    ground_name = strcat(trainB_path,num2str(i),'.png');
+    contour = imread(contour_name);
+    ground = imread(ground_name);
+    crop_patch = imcrop(ground);
+    close all;
+    imshow(contour);
+    [x,y]=ginput(1);
+    x=round(x);
+    y=round(y);
+    plot(x,y,'ro');
+    contour =
+end
