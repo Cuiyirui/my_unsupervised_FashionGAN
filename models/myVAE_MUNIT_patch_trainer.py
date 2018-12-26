@@ -143,13 +143,13 @@ class my_VAE_MUNIT_patch_Trainer(nn.Module):
 
         # encode
         # encode x_a using vae
-        mu, logvar = self.enc_a(x_a)
-        std = logvar.mul(0.5).exp_()
-        s_a_prime = self.eps_a.mul(std).add_(mu)
+        mu_a, logvar_a = self.enc_a(x_a)
+        std = logvar_a.mul(0.5).exp_()
+        s_a_prime = self.eps_a.mul(std).add_(mu_a)
         # encode x_b using vae
-        mu, logvar = self.enc_a(x_b)
-        std = logvar.mul(0.5).exp_()
-        s_b_prime = self.eps_b.mul(std).add_(mu)
+        mu_b, logvar_b = self.enc_b(x_b)
+        std = logvar_b.mul(0.5).exp_()
+        s_b_prime = self.eps_b.mul(std).add_(mu_b)
 
 
         # decode (cross domain)
@@ -209,7 +209,11 @@ class my_VAE_MUNIT_patch_Trainer(nn.Module):
         self.loss_gen_style_a = self.criterionS(x_ab, x_a) if hyperparameters['style_w'] > 0 else 0
         self.loss_gen_style_b = self.criterionS(x_ba, x_b) if hyperparameters['style_w'] > 0 else 0
 
-
+        # kl divergence
+        kl_element_a = mu_a.pow(2).add_(logvar_a.exp()).mul_(-1).add_(1).add_(logvar_a)
+        kl_element_b = mu_b.pow(2).add_(logvar_b.exp()).mul_(-1).add_(1).add_(logvar_b)
+        self.loss_kl_a = torch.sum(kl_element_a).mul_(-0.5)
+        self.loss_kl_b = torch.sum(kl_element_b).mul_(-0.5)
 
         # total loss
         self.loss_gen_total = hyperparameters['gan_w'] * self.loss_gen_adv_a + \
@@ -223,7 +227,9 @@ class my_VAE_MUNIT_patch_Trainer(nn.Module):
                               hyperparameters['recon_x_s_w'] * self.loss_gen_x_recon_s_a + \
                               hyperparameters['recon_x_s_w'] * self.loss_gen_x_recon_s_b + \
                               hyperparameters['style_w'] * self.loss_gen_style_a + \
-                              hyperparameters['style_w'] * self.loss_gen_style_b
+                              hyperparameters['style_w'] * self.loss_gen_style_b + \
+                              hyperparameters['kl_w'] * self.loss_kl_a + \
+                              hyperparameters['kl_w'] * self.loss_kl_b
             #hyperparameters['recon_x_cyc_w'] * self.loss_gen_cycrecon_x_a + \
                               #hyperparameters['recon_x_cyc_w'] * self.loss_gen_cycrecon_x_b
                               #hyperparameters['vgg_w'] * self.loss_gen_vgg_a + \
@@ -467,8 +473,9 @@ class my_VAE_MUNIT_patch_Trainer(nn.Module):
         if hyper['style_w'] != 0:
             ret_dict['loss_gen_style_a'] = self.loss_gen_style_a * hyper['content_w']
             ret_dict['loss_gen_style_b'] = self.loss_gen_style_b * hyper['style_w']
-
-
+        if hyper['kl_w'] != 0:
+            ret_dict['loss_kl_a'] = self.loss_kl_a * hyper['kl_w']
+            ret_dict['loss_kl_b'] = self.loss_kl_b * hyper['kl_w']
         ret_dict['loss_gen_total'] = self.loss_gen_total.data
         return ret_dict
 
