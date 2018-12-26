@@ -7,18 +7,18 @@ import torch.nn as nn
 import numpy as np
 import os
 
-class myMUNIT_patch_Trainer(nn.Module):
+class my_VAE_MUNIT_patch_Trainer(nn.Module):
     def __init__(self, hyperparameters):
-        super(myMUNIT_patch_Trainer, self).__init__()
+        super(my_VAE_MUNIT_patch_Trainer, self).__init__()
         lr = hyperparameters['lr']
         # Initiate the networks
         self.style_dim = hyperparameters['gen']['style_dim']
-        self.enc_a = networks.define_E(input_nc=3, output_nc=self.style_dim, ndf=64)        # encoder for domain a
-        self.enc_b = networks.define_E(input_nc=3, output_nc=self.style_dim, ndf=64)        # encoder for domain b
-        self.gen_a = networks.define_G(input_nc=3, output_nc=3, nz=self.style_dim, ngf=64)  # generator for domain a
-        self.gen_b = networks.define_G(input_nc=6, output_nc=3, nz=self.style_dim, ngf=64)  # generator for domain b
-        self.dis_a = networks.define_D(input_nc=3, ndf=64,norm='instance', num_Ds=2)     # discriminator for domain a
-        self.dis_b = networks.define_D(input_nc=3, ndf=64,norm='instance', num_Ds=2)     # discriminator for domain b
+        self.enc_a = networks.define_E(input_nc=3, output_nc=self.style_dim, ndf=64,vaeLike=True)        # encoder for domain a
+        self.enc_b = networks.define_E(input_nc=3, output_nc=self.style_dim, ndf=64,vaeLike=True)        # encoder for domain b
+        self.gen_a = networks.define_G(input_nc=3, output_nc=3, nz=self.style_dim, ngf=64)               # generator for domain a
+        self.gen_b = networks.define_G(input_nc=6, output_nc=3, nz=self.style_dim, ngf=64)               # generator for domain b
+        self.dis_a = networks.define_D(input_nc=3, ndf=64,norm='instance', num_Ds=2)                     # discriminator for domain a
+        self.dis_b = networks.define_D(input_nc=3, ndf=64,norm='instance', num_Ds=2)                     # discriminator for domain b
         self.netVGGF = networks.define_VGGF()
         self.instancenorm = nn.InstanceNorm2d(512, affine=False)
 
@@ -92,8 +92,8 @@ class myMUNIT_patch_Trainer(nn.Module):
         self.set_requires_grad(self.dis_b, False)
 
         # encode
-        s_a = self.enc_a(x_a)
-        s_b = self.enc_b(x_b)
+        s_a = self.vae_encode(self.enc_a, x_a)
+        s_b = self.vae_encode(self.enc_b, x_b)
 
         # decode (cross domain)
         x_ab = self.gen_a(x_b, s_a)
@@ -142,8 +142,15 @@ class myMUNIT_patch_Trainer(nn.Module):
         s_b_random = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
 
         # encode
-        s_a_prime = self.enc_a(x_a)
-        s_b_prime = self.enc_b(x_b)
+        # encode x_a using vae
+        mu, logvar = self.enc_a(x_a)
+        std = logvar.mul(0.5).exp_()
+        s_a_prime = self.eps_a.mul(std).add_(mu)
+        # encode x_b using vae
+        mu, logvar = self.enc_a(x_b)
+        std = logvar.mul(0.5).exp_()
+        s_b_prime = self.eps_b.mul(std).add_(mu)
+
 
         # decode (cross domain)
         x_ab = self.gen_a(x_b, s_a_prime)
@@ -165,12 +172,13 @@ class myMUNIT_patch_Trainer(nn.Module):
         x_ab_random = self.gen_b(torch.cat((x_a_patch,x_a),1), s_b_random)  #mask
 
         # cross domain encode again
-        s_a_recon = self.enc_a(x_ab)
-        s_b_recon = self.enc_b(x_ba)
+        s_a_recon = self.vae_encode(self.enc_a, x_ab)
+        s_b_recon = self.vae_encode(self.enc_b, x_ba)
 
         # in domain encode again
-        s_a_x_recon = self.enc_a(x_a_recon)
-        s_b_x_recon = self.enc_b(x_b_recon)
+
+        s_a_x_recon = self.vae_encode(self.enc_a,x_a_recon)
+        s_b_x_recon = self.vae_encode(self.enc_b,x_b_recon)
 
         # decode again (if needed)
         x_aba = self.gen_a.decode(x_ba, s_a_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None
@@ -307,9 +315,20 @@ class myMUNIT_patch_Trainer(nn.Module):
         self.dis_opt.zero_grad()
         self.set_requires_grad(self.dis_a, True)
         self.set_requires_grad(self.dis_b, True)
-        # encode
-        s_a = self.enc_a(x_a)
-        s_b = self.enc_b(x_b)
+
+        # encode x_a using encoder compute mu and sigma for VAE then form a code
+        mu, logvar = self.enc_a(x_a)
+        std = logvar.mul(0.5).exp_()
+        self.eps_a = self.get_z_random(std.size(0), std.size(1), 'gauss')
+        s_a = self.eps_a.mul(std).add_(mu)
+        # encode x_a using encoder compute mu and sigma for VAE then form a code
+        mu, logvar = self.enc_a(x_b)
+        std = logvar.mul(0.5).exp_()
+        self.eps_b = self.get_z_random(std.size(0), std.size(1), 'gauss')
+        s_b = self.eps_b.mul(std).add_(mu)
+
+
+
         # decode (cross domain)
         x_ab = self.gen_a(x_b, s_a)
         #x_ba = self.gen_b(x_a, s_b)
@@ -347,6 +366,12 @@ class myMUNIT_patch_Trainer(nn.Module):
         print("loss d_b:", loss_dis_b.data.cpu().numpy())
         print("total lossD:", self.loss_dis_total.data.cpu().numpy())
         '''
+    def vae_encode(self,netE,im):
+        mu, logvar = netE.forward(im)
+        std = logvar.mul(0.5).exp_()
+        eps = self.get_z_random(std.size(0), std.size(1), 'gauss')
+        code = eps.mul(std).add_(mu)
+        return code
 
     def update_learning_rate(self):
         if self.dis_scheduler is not None:
@@ -451,6 +476,15 @@ class myMUNIT_patch_Trainer(nn.Module):
         if net is not None:
             for param in net.parameters():
                 param.requires_grad = requires_grad  # to avoid computation
+
+    def get_z_random(self, batchSize, nz, random_type='gauss'):
+        z = torch.cuda.FloatTensor(batchSize, nz)
+        if random_type == 'uni':
+            z.copy_(torch.rand(batchSize, nz) * 2.0 - 1.0)
+        elif random_type == 'gauss':
+            z.copy_(torch.randn(batchSize, nz))
+        z = Variable(z)
+        return z
 
 def tensor2im(image_tensor, imtype=np.uint8, cvt_rgb=True,initial_mothod='Normal'):
     image_numpy = image_tensor[0].cpu().float().numpy()

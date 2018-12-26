@@ -14,6 +14,9 @@ def create_model(opt,config):
     elif opt.trainer == 'myMUNIT_patch':
         from .myMUNIT_patch_trainer import myMUNIT_patch_Trainer
         model = myMUNIT_patch_Trainer(config)
+    elif opt.trainer == 'myVAE_MUNIT_patch':
+        from .myVAE_MUNIT_patch_trainer import my_VAE_MUNIT_patch_Trainer
+        model = my_VAE_MUNIT_patch_Trainer(config)
     elif opt.trainer == 'myNet':
         from .myNet_trainer import myNet_Trainer
         model = myNet_Trainer(config)

@@ -43,13 +43,13 @@ new_im = uint8(new_im);
 
 
 %% rename
-% parfor i = 1:length(img_path_list)
-%     im_name = strcat(pathA,img_path_list(i).name);
-%     %im_name = strcat(pathA,num2str(i),'.jpg');
-%     image = imread(im_name);
-%     new_name = strcat(pathB,num2str(i),'.png');
-%     imwrite(image,new_name)
-% end
+parfor i = 1:length(img_path_list)
+    %im_name = strcat(pathA,img_path_list(i).name);
+    im_name = strcat(pathA,num2str(i),'.jpg');
+    image = imread(im_name);
+    new_name = strcat(pathB,num2str(i),'.png');
+    imwrite(image,new_name)
+end
 
 
 %% 3 to 2
@@ -155,17 +155,17 @@ new_im = uint8(new_im);
 % end
 
 %% detach data
-parfor i=1:length(img_path_list)
-    im_name=strcat(pathA,num2str(i),'.png');
-    im=imread(im_name);
-    contour=im(:,1:256,:);
-    ground=im(:,257:512,:);
-    %write contour image
-    imwrite(contour,strcat(pathB,'trainA/',num2str(i),'.png'));
-    %write pattern image
-     imwrite(ground,strcat(pathB,'trainB/',num2str(i),'.png'));
-    
-end
+% for i=1:length(img_path_list)
+%     im_name=strcat(pathA,num2str(i),'.png');
+%     im=imread(im_name);
+%     contour=im(:,1:256,:);
+%     ground=im(:,257:512,:);
+%     %write contour image
+%     imwrite(contour,strcat(pathB,'trainA/',num2str(i),'.png'));
+%     %write pattern image
+%      imwrite(ground,strcat(pathB,'trainB/',num2str(i),'.png'));
+%     
+% end
 %% write list file
 
 

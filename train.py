@@ -1,6 +1,5 @@
 """
-Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
-Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+Copyright (C) 2018 Cuiyirui.  All rights reserved.
 """
 from models.models import create_model
 from models.utils import get_all_data_loaders, prepare_sub_folder, write_html, write_loss, get_config, write_2images,Timer,to_1_channel
@@ -18,13 +17,18 @@ import os
 import sys
 #import tensorboardX
 import shutil
-torch.cuda.set_device(0)
+torch.cuda.set_device(1)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='./configs/edges2single_shirts_folder.yaml', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='./configs/edges2shirts_stripe_patch_folder.yaml', help='Path to the config file.')
 parser.add_argument('--output_path', type=str, default='.', help="outputs path")
 parser.add_argument("--resume", action="store_true")
-parser.add_argument('--trainer', type=str, default='myMUNIT', help="MUNIT|UNIT|myMUNIT|myMUNIT_patch|myNet")
+parser.add_argument('--E_path', type=str, default='./pretrained_models/latest_net_E.pt', help="checkpoint of autoencoders")
+parser.add_argument('--G_path', type=str, default='./pretrained_models/latest_net_G.pt', help="checkpoint of generator")
+parser.add_argument('--D_path', type=str, default='./pretrained_models/latest_net_D.pt', help="checkpoint of discriminator")
+parser.add_argument("--continue_train",action="store_true")
+parser.add_argument('--trainer', type=str, default='myVAE_MUNIT_patch', help="MUNIT|UNIT|myMUNIT|myMUNIT_patch|myVAE_MUNIT_patch|myNet")
+parser.add_argument('--phase',type=str,default='train',help='which phase')
 opts = parser.parse_args()
 
 cudnn.benchmark = True
@@ -34,15 +38,18 @@ config = get_config(opts.config)
 max_iter = config['max_iter']
 display_size = config['display_size']
 config['vgg_model_path'] = opts.output_path
-
+# creat model
 trainer = create_model(opts,config)
 trainer.cuda()
+# creat data loader
 train_loader_a, train_loader_b, test_loader_a, test_loader_b = get_all_data_loaders(config)
-train_display_images_a = torch.stack([train_loader_a.dataset[i] for i in range(display_size)]).cuda()
-train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
+#train_display_images_a = torch.stack([train_loader_a.dataset[i] for i in range(display_size)]).cuda()
+#train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
 test_display_images_a = torch.stack([test_loader_a.dataset[i] for i in range(display_size)]).cuda()
 test_display_images_b = torch.stack([test_loader_b.dataset[i] for i in range(display_size)]).cuda()
-
+# whether continue train
+if opts.continue_train:
+    trainer.load_model_dict(opts)
 
 
 
