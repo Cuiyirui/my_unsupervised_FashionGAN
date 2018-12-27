@@ -46,25 +46,27 @@ def get_all_data_loaders(conf):
     else:
         new_size_a = conf['new_size_a']
         new_size_b = conf['new_size_b']
-    height = conf['crop_image_height']
-    width = conf['crop_image_width']
+    a_height = conf['a_crop_image_height']
+    a_width = conf['a_crop_image_width']
+    b_height = conf['b_crop_image_height']
+    b_width = conf['b_crop_image_width']
 
     if 'data_root' in conf:
         train_loader_a = get_data_loader_folder(os.path.join(conf['data_root'], 'trainA'), batch_size, False,
-                                              new_size_a, height, width, num_workers, True, True)
+                                              new_size_a, a_height, a_width, num_workers, True, True)
         test_loader_a = get_data_loader_folder(os.path.join(conf['data_root'], 'testA'), batch_size, False,
-                                              new_size_a, height, width, num_workers, True, False)
+                                              new_size_a, a_height, a_width, num_workers, True, False)
         train_loader_b = get_data_loader_folder(os.path.join(conf['data_root'], 'trainB'), batch_size, False,
-                                              new_size_b, height, width, num_workers, True, True)
+                                              new_size_b, b_height, b_width, num_workers, True, True)
         test_loader_b = get_data_loader_folder(os.path.join(conf['data_root'], 'testB'), batch_size, False,
-                                              new_size_b, height, width,  num_workers, True, False)
+                                              new_size_b, b_height, b_width,  num_workers, True, False)
     else:
         train_loader_a = get_data_loader_list(conf['data_folder_train_a'], conf['data_list_train_a'], batch_size, False,
-                                                new_size_a, height, width, num_workers, True)
+                                                new_size_a, a_height, a_width, num_workers, True)
         test_loader_a = get_data_loader_list(conf['data_folder_test_a'], conf['data_list_test_a'], batch_size, False,
                                                 new_size_a, new_size_a, new_size_a, num_workers, True)
         train_loader_b = get_data_loader_list(conf['data_folder_train_b'], conf['data_list_train_b'], batch_size, False,
-                                                new_size_b, height, width, num_workers, True)
+                                                new_size_b, b_height, b_width, num_workers, True)
         test_loader_b = get_data_loader_list(conf['data_folder_test_b'], conf['data_list_test_b'], batch_size, False,
                                                 new_size_b, new_size_b, new_size_b, num_workers, True)
     return train_loader_a, train_loader_b, test_loader_a, test_loader_b
@@ -440,6 +442,27 @@ def generateMaskPatch(mask,patch):
     mask =  mask*0.5 + 0.5
     final_im = patch*mask
     final_im = final_im + (1 - mask)
+    return final_im
+
+def generatePatch(patch,mask):
+    mask = mask * 0.5 + 0.5
+    patch_num = int(256 / 64)
+
+    for i in range(patch_num):
+        for j in range(patch_num):
+            if j == 0:
+                row_im = patch
+            else:
+                row_im = torch.cat((row_im, patch), 1)
+        if i == 0:
+            final_im = row_im
+        else:
+            final_im = torch.cat((final_im, row_im), 2)
+    # denoise
+    mask = mask > 0.9
+    final_im = torch.mul(final_im, mask.float())
+    final_im = torch.add(final_im, (1 - mask).float())
+
     return final_im
 
 def tensor2im(image_tensor, imtype=np.uint8, cvt_rgb=True,initial_mothod='Normal'):

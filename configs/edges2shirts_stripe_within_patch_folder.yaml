@@ -56,9 +56,11 @@ input_dim_b: 3                              # number of image channels [1/3]
 num_workers: 8                              # number of data loading threads
 new_size_a: 256                             # first resize the shortest image side to this size
 new_size_b: 256
-crop_image_height: 256                      # random crop image of this height
-crop_image_width: 512                       # random crop image of this width
-data_root: ./datasets/edges2shirts_stripe_patch/     # dataset folder location
+a_crop_image_height: 256                      # random crop image of this height
+a_crop_image_width: 512                       # random crop image of this width
+b_crop_image_height: 256                      # random crop image of this height
+b_crop_image_width: 256                       # random crop image of this width
+data_root: ./datasets/edges2shirts_stripe_within_patch/     # dataset folder location
 patch_size: 64
 alignned_num: 1
 whether_mask: 1

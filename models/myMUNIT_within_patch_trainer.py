@@ -1,5 +1,5 @@
 import networks
-from .utils import weights_init, get_model_list, vgg_preprocess, load_vgg16, get_scheduler,clipPatch,generateMaskPatch
+from .utils import weights_init, get_model_list, vgg_preprocess, load_vgg16, get_scheduler,clipPatch,generateMaskPatch,generatePatch
 from torch.autograd import Variable
 from collections import OrderedDict
 import torch
@@ -7,16 +7,16 @@ import torch.nn as nn
 import numpy as np
 import os
 
-class MUNIT_Trainer(nn.Module):
+class myMUNIT_within_patch_Trainer(nn.Module):
     def __init__(self, hyperparameters):
-        super(MUNIT_Trainer, self).__init__()
+        super(myMUNIT_within_patch_Trainer, self).__init__()
         lr = hyperparameters['lr']
         # Initiate the networks
         self.style_dim = hyperparameters['gen']['style_dim']
         self.enc_a = networks.define_E(input_nc=3, output_nc=self.style_dim, ndf=64)        # encoder for domain a
         self.enc_b = networks.define_E(input_nc=3, output_nc=self.style_dim, ndf=64)        # encoder for domain b
         self.gen_a = networks.define_G(input_nc=3, output_nc=3, nz=self.style_dim, ngf=64)  # generator for domain a
-        self.gen_b = networks.define_G(input_nc=3, output_nc=3, nz=self.style_dim, ngf=64)  # generator for domain b
+        self.gen_b = networks.define_G(input_nc=6, output_nc=3, nz=self.style_dim, ngf=64)  # generator for domain b
         self.dis_a = networks.define_D(input_nc=3, ndf=64,norm='instance', num_Ds=2)     # discriminator for domain a
         self.dis_b = networks.define_D(input_nc=3, ndf=64,norm='instance', num_Ds=2)     # discriminator for domain b
         self.netVGGF = networks.define_VGGF()
@@ -73,27 +73,45 @@ class MUNIT_Trainer(nn.Module):
             self.x_a = x_a
             self.x_b = x_b
         else:
-            self.x_b = x_b[:,:,:,0:256]
-            self.x_b_patch = x_b[:,:,:,256:512]
+            self.x_b = x_b[:, :, :, 0:256]
             self.x_b_mask_patch = self.x_b
+            self.x_b_patch = clipPatch(self.x_b,fineSize=256,encodeSize=64)
             self.x_a = x_a[:, :, :, 0:256]
             self.x_a_mask = x_a[:, :, :, 256:512]
             self.x_a_mask_patch = generateMaskPatch(self.x_a_mask,self.x_b_patch)
 
+    def test_encoded(self):
+        x_a = self.x_a
+        x_b = self.x_b
+        x_b_patch = self.x_b_mask_patch
+        x_a_patch = self.x_a_mask_patch
+        self.gen_opt.zero_grad()
 
+        # parameter of discriminator are not updated
+        self.set_requires_grad(self.dis_a, False)
+        self.set_requires_grad(self.dis_b, False)
 
-    def forward(self):
-        self.eval()
+        # encode
+        s_a = self.enc_a(x_a)
+        s_b = self.enc_b(x_b)
+
+        # decode (cross domain)
+        x_ab = self.gen_a(x_b, s_a)
+        x_ba = self.gen_b(torch.cat((x_a_patch, x_a), 1), s_b)  # mask
+        return x_ba, x_ab
+    def test_sample(self):
+        x_a = self.x_a
+        x_b = self.x_b
+        x_a_mask_patch = self.x_a_mask_patch
+        x_b_mask_patch = self.x_b_mask_patch
         # random_code
-        # s_a = Variable(torch.randn(x_a.size(0), self.style_dim, 1, 1).cuda())
-        # s_b = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
-        # encode input image
-        self.s_a = self.enc_a(self.x_a)
-        self.s_b = self.enc_a(self.x_b)
+        g2_condition = torch.cat((x_a_mask_patch, x_a), 1)
+        s_a_rand = Variable(torch.randn(1, self.style_dim, 1, 1).cuda())
+        s_b_rand = Variable(torch.randn(1, self.style_dim, 1, 1).cuda())
         # generate image
-        self.x_ab = self.gen_a(self.x_b, self.s_a)
-        self.x_ba = self.gen_b(self.x_a, self.s_b)
-        self.train()
+        x_ab_rand = self.gen_a(x_b, s_a_rand)
+        x_ba_rand = self.gen_b(g2_condition, s_b_rand)
+        return  x_ba_rand,x_ab_rand
     '''
     def forward(self, x_a, x_b):
         self.eval()
@@ -125,26 +143,26 @@ class MUNIT_Trainer(nn.Module):
 
         # encode
         s_a_prime = self.enc_a(x_a)
-        s_b_prime = self.enc_a(x_b)
-
-        # decode (within domain)
-        x_a_recon = self.gen_a(x_a, s_a_prime)
-        x_b_recon = self.gen_a(x_b, s_b_prime)
-        #x_b_recon = self.gen_b(torch.cat((x_b_patch,x_b),1), s_b_prime) #mask
-        self.x_a_recon = x_a_recon
-        self.x_b_recon = x_b_recon
+        s_b_prime = self.enc_b(x_b)
 
         # decode (cross domain)
         x_ab = self.gen_a(x_b, s_a_prime)
-        x_ba = self.gen_a(x_a, s_b_prime)
-        #x_ba = self.gen_b(torch.cat((x_a_patch,x_a),1), s_b_prime)   #mask
+        #x_ba = self.gen_b(x_a, s_b_prime)
+        x_ba = self.gen_b(torch.cat((x_a_patch,x_a),1), s_b_prime)   #mask
         self.x_ab = x_ab
         self.x_ba = x_ba
 
+        # decode (within domain)
+        x_a_recon = self.gen_a(x_ba, s_a_prime)
+        #x_b_recon = self.gen_b(x_ab, s_b_prime)
+        x_b_recon = self.gen_b(torch.cat((x_b_patch,x_b),1), s_b_prime) #mask
+        self.x_a_recon = x_a_recon
+        self.x_b_recon = x_b_recon
+
         # random
         x_ba_random = self.gen_a(x_b, s_a_random)
-        x_ab_random = self.gen_a(x_a, s_b_random)
-        #x_ab_random = self.gen_b(torch.cat((x_a_patch,x_a),1), s_b_random)  #mask
+        #x_ab_random = self.gen_b(x_a, s_b_random)
+        x_ab_random = self.gen_b(torch.cat((x_a_patch,x_a),1), s_b_random)  #mask
 
         # cross domain encode again
         s_a_recon = self.enc_a(x_ab)
@@ -156,7 +174,7 @@ class MUNIT_Trainer(nn.Module):
 
         # decode again (if needed)
         x_aba = self.gen_a.decode(x_ba, s_a_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None
-        x_bab = self.gen_a.decode(x_ab, s_b_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None
+        x_bab = self.gen_b.decode(x_ab, s_b_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None
 
         # reconstruction loss
         self.loss_gen_recon_x_a = self.recon_criterion(x_a_recon, x_a)
@@ -213,6 +231,7 @@ class MUNIT_Trainer(nn.Module):
         print('loss_gen_recon_s_b:', hyperparameters['recon_s_w'] * self.loss_gen_recon_s_b.data.cpu().numpy())
         print('loss_total:',self.loss_gen_total.data.cpu().numpy())
         '''
+
     def compute_vgg_loss(self, vgg, img, target):
         img_vgg = vgg_preprocess(img)
         target_vgg = vgg_preprocess(target)
@@ -265,12 +284,12 @@ class MUNIT_Trainer(nn.Module):
             for i in range(x_a.size(0)):
                 s_a_fake = self.enc_a(x_a[i].unsqueeze(0))
                 s_b_fake = self.enc_b(x_b[i].unsqueeze(0))
-                x_a_recon.append(self.gen_a(x_a[i].unsqueeze(0), s_a_fake.unsqueeze(2).unsqueeze(3)))
-                x_b_recon.append(self.gen_b(x_b[i].unsqueeze(0), s_b_fake.unsqueeze(2).unsqueeze(3)))
                 x_ba1.append(self.gen_a(x_a[i].unsqueeze(0), s_b_fake.unsqueeze(2).unsqueeze(3)))
                 x_ba2.append(self.gen_a(x_a[i].unsqueeze(0), s_b_fake.unsqueeze(2).unsqueeze(3)))
                 x_ab1.append(self.gen_b(x_b[i].unsqueeze(0), s_a_fake.unsqueeze(2).unsqueeze(3)))
                 x_ab2.append(self.gen_b(x_b[i].unsqueeze(0), s_a_fake.unsqueeze(2).unsqueeze(3)))
+                x_a_recon.append(self.gen_a(x_ba1[i], s_a_fake.unsqueeze(2).unsqueeze(3)))
+                x_b_recon.append(self.gen_b(x_ab1[i], s_b_fake.unsqueeze(2).unsqueeze(3)))
 
         # aggragate data
         x_a_recon, x_b_recon = torch.cat(x_a_recon), torch.cat(x_b_recon)
@@ -293,8 +312,8 @@ class MUNIT_Trainer(nn.Module):
         s_b = self.enc_b(x_b)
         # decode (cross domain)
         x_ab = self.gen_a(x_b, s_a)
-        x_ba = self.gen_a(x_a, s_b)
-        #x_ba = self.gen_b(torch.cat((x_a_patch,x_a),1), s_b)
+        #x_ba = self.gen_b(x_a, s_b)
+        x_ba = self.gen_b(torch.cat((x_a_patch,x_a),1), s_b)
         # save x_ab and x_ba
         self.x_ab = x_ab
         self.x_ba = x_ba
@@ -367,6 +386,23 @@ class MUNIT_Trainer(nn.Module):
         torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict()}, gen_name)
         torch.save({'a': self.dis_a.state_dict(), 'b': self.dis_b.state_dict()}, dis_name)
         torch.save({'gen': self.gen_opt.state_dict(), 'dis': self.dis_opt.state_dict()}, opt_name)
+    def load_model_dict(self,opts):
+        path_E = opts.E_path
+        path_G = opts.G_path
+        state_dict_E = torch.load(path_E)
+        state_dict_G = torch.load(path_G)
+        # need discriminator when training
+        if opts.phase=="train":
+            path_D = opts.D_path
+            state_dict_D = torch.load(path_D)
+            self.dis_a.load_state_dict(state_dict_D['a'])
+            self.dis_b.load_state_dict(state_dict_D['b'])
+        # load net by path
+        self.enc_a.load_state_dict(state_dict_E['a'])
+        self.enc_b.load_state_dict(state_dict_E['b'])
+        self.gen_a.load_state_dict(state_dict_G['a'])
+        self.gen_b.load_state_dict(state_dict_G['b'])
+
 
 
     def get_current_visuals(self):

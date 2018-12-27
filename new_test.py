@@ -39,7 +39,7 @@ parser.add_argument('--num_style',type=int, default=10, help="number of styles t
 parser.add_argument('--batchsize', type=int, default=1, help="batch size when testing")
 parser.add_argument('--num_workers', type=int, default=8, help="num of workers")
 parser.add_argument('--synchronized', action='store_true', help="whether use synchronized style code or not")
-parser.add_argument('--trainer', type=str, default='myMUNIT_patch', help="MUNIT|UNIT|myMUNIT|myMUNIT_patch|myNet")
+parser.add_argument('--trainer', type=str, default='myVAE_MUNIT_patch', help="MUNIT|UNIT|myMUNIT|myMUNIT_patch|myVAE_MUNIT_patch|myNet")
 
 opts = parser.parse_args()
 

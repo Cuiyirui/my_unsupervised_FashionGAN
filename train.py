@@ -17,17 +17,17 @@ import os
 import sys
 #import tensorboardX
 import shutil
-torch.cuda.set_device(1)
+torch.cuda.set_device(0)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='./configs/edges2shirts_stripe_patch_folder.yaml', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='./configs/edges2shirts_stripe_within_patch_folder.yaml', help='Path to the config file.')
 parser.add_argument('--output_path', type=str, default='.', help="outputs path")
 parser.add_argument("--resume", action="store_true")
 parser.add_argument('--E_path', type=str, default='./pretrained_models/latest_net_E.pt', help="checkpoint of autoencoders")
 parser.add_argument('--G_path', type=str, default='./pretrained_models/latest_net_G.pt', help="checkpoint of generator")
 parser.add_argument('--D_path', type=str, default='./pretrained_models/latest_net_D.pt', help="checkpoint of discriminator")
 parser.add_argument("--continue_train",action="store_true")
-parser.add_argument('--trainer', type=str, default='myVAE_MUNIT_patch', help="MUNIT|UNIT|myMUNIT|myMUNIT_patch|myVAE_MUNIT_patch|myNet")
+parser.add_argument('--trainer', type=str, default='myMUNIT_within_patch', help="MUNIT|UNIT|myMUNIT|myMUNIT_patch|myMUNIT_within_patch|myVAE_MUNIT_patch|myNet")
 parser.add_argument('--phase',type=str,default='train',help='which phase')
 opts = parser.parse_args()
 
