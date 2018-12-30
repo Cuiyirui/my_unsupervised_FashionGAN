@@ -367,6 +367,22 @@ class myMUNIT_Trainer(nn.Module):
         torch.save({'a': self.dis_a.state_dict(), 'b': self.dis_b.state_dict()}, dis_name)
         torch.save({'gen': self.gen_opt.state_dict(), 'dis': self.dis_opt.state_dict()}, opt_name)
 
+    def load_model_dict(self,opts):
+        path_E = opts.E_path
+        path_G = opts.G_path
+        state_dict_E = torch.load(path_E)
+        state_dict_G = torch.load(path_G)
+        # need discriminator when training
+        if opts.phase=="train":
+            path_D = opts.D_path
+            state_dict_D = torch.load(path_D)
+            self.dis_a.load_state_dict(state_dict_D['a'])
+            self.dis_b.load_state_dict(state_dict_D['b'])
+        # load net by path
+        self.enc_a.load_state_dict(state_dict_E['a'])
+        self.enc_b.load_state_dict(state_dict_E['b'])
+        self.gen_a.load_state_dict(state_dict_G['a'])
+        self.gen_b.load_state_dict(state_dict_G['b'])
 
     def get_current_visuals(self):
         contour_im = tensor2im(self.x_a.data)

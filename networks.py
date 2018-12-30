@@ -1150,6 +1150,30 @@ def define_VGGF():
     return netVGGF
 
 
+class VGG_Content(nn.Module):
+    def __init__(self):
+        super(VGG_Content, self).__init__()
+        self.vgg19 = tvmodels.vgg19(pretrained = True).features
+
+    def forward(self, input, select_layers=['14', '21','25']):
+        features = []
+        for name, layer in self.vgg19._modules.items():
+            input = layer(input)
+            count = 1
+            if name in select_layers:
+                feature_im = input
+                feature_im = torch.nn.functional.interpolate(feature_im,[256,256])
+                if count == 1:
+                    features = feature_im
+                else:
+                    torch.cat([features,feature_im],0)
+        return features
+
+def define_VGG_Content():
+    netVGG =  VGG_Content()
+    netVGG.cuda()
+    return netVGG
+
 
 # some functions
 def weights_init_normal(m):

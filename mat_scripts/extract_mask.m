@@ -1,8 +1,8 @@
 %%
 clear;clc;close all;
 mask_thre = 240;
-pathA = '/home/Cuiyirui/桌面/GAN/dataset/detached_dataset/picture_10K_stripe/trainA/';
-pathB = '/home/Cuiyirui/桌面/GAN/dataset/detached_dataset/picture_10K_stripe_patch/trainA/';
+pathA = '/home/Cuiyirui/GAN/dataset/picture_detached/picture_2w_norm/trainA/';
+pathB = '/home/Cuiyirui/GAN/dataset/picture_detached/picture_2w_patch/trainA/';
 pathC ='/home/Cuiyirui/GAN/dataset/detached_dataset/picture_312_stripe_sequence_patch/testA/';
 img_path_list=dir(strcat(pathA,'*.png'));
 new_im = zeros(256,512,3);

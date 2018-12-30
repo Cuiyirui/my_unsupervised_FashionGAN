@@ -13,8 +13,8 @@ class myNet_Trainer(nn.Module):
         lr = hyperparameters['lr']
         # Initiate the networks
         self.style_dim = hyperparameters['gen']['style_dim']
-        self.enc_c_a = networks.define_VGGF()
-        self.enc_c_b = networks.define_VGGF()
+        self.enc_c_a = networks.define_VGG_Content()
+        self.enc_c_b = networks.define_VGG_Content()
         self.enc_s_a = networks.define_E(input_nc=3, output_nc=self.style_dim, ndf=64)        # encoder for domain a
         self.enc_s_b = networks.define_E(input_nc=3, output_nc=self.style_dim, ndf=64)        # encoder for domain b
         self.gen_a = networks.define_G(input_nc=3, output_nc=3, nz=self.style_dim, ngf=64)  # generator for domain a
@@ -358,15 +358,32 @@ class myNet_Trainer(nn.Module):
 
     def save(self, snapshot_dir, iterations):
         # Save generators, discriminators, and optimizers
-        enc_name = os.path.join(snapshot_dir, 'enc_%08d.pt' % (iterations + 1))
+        enc_content_name = os.path.join(snapshot_dir, 'enc_content_%08d.pt' % (iterations + 1))
+        enc_style_name = os.path.join(snapshot_dir, 'enc_style_%08d.pt' % (iterations + 1))
         gen_name = os.path.join(snapshot_dir, 'gen_%08d.pt' % (iterations + 1))
         dis_name = os.path.join(snapshot_dir, 'dis_%08d.pt' % (iterations + 1))
         opt_name = os.path.join(snapshot_dir, 'optimizer.pt')
-        torch.save({'a': self.enc_a.state_dict(), 'b': self.enc_b.state_dict()}, enc_name)
+        torch.save({'a': self.enc_c_a.state_dict(), 'b': self.enc_c_b.state_dict()}, enc_content_name)
+        torch.save({'a': self.enc_s_a.state_dict(), 'b': self.enc_s_b.state_dict()}, enc_style_name)
         torch.save({'a': self.gen_a.state_dict(), 'b': self.gen_b.state_dict()}, gen_name)
         torch.save({'a': self.dis_a.state_dict(), 'b': self.dis_b.state_dict()}, dis_name)
         torch.save({'gen': self.gen_opt.state_dict(), 'dis': self.dis_opt.state_dict()}, opt_name)
-
+    def load_model_dict(self,opts):
+        path_E = opts.E_path
+        path_G = opts.G_path
+        state_dict_E = torch.load(path_E)
+        state_dict_G = torch.load(path_G)
+        # need discriminator when training
+        if opts.phase=="train":
+            path_D = opts.D_path
+            state_dict_D = torch.load(path_D)
+            self.dis_a.load_state_dict(state_dict_D['a'])
+            self.dis_b.load_state_dict(state_dict_D['b'])
+        # load net by path
+        self.enc_a.load_state_dict(state_dict_E['a'])
+        self.enc_b.load_state_dict(state_dict_E['b'])
+        self.gen_a.load_state_dict(state_dict_G['a'])
+        self.gen_b.load_state_dict(state_dict_G['b'])
 
     def get_current_visuals(self):
         contour_im = tensor2im(self.x_a.data)
