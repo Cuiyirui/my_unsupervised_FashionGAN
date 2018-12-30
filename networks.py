@@ -1157,16 +1157,19 @@ class VGG_Content(nn.Module):
 
     def forward(self, input, select_layers=['14', '21','25']):
         features = []
+        count = 1
         for name, layer in self.vgg19._modules.items():
             input = layer(input)
-            count = 1
             if name in select_layers:
                 feature_im = input
                 feature_im = torch.nn.functional.interpolate(feature_im,[256,256])
+                feature_im = torch.mean(feature_im,1)
+                feature_im = feature_im.unsqueeze(0)
                 if count == 1:
                     features = feature_im
                 else:
-                    torch.cat([features,feature_im],0)
+                    features=torch.cat([features,feature_im],1)
+                count += 1
         return features
 
 def define_VGG_Content():

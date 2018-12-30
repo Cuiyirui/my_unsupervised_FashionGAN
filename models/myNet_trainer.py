@@ -109,8 +109,8 @@ class myNet_Trainer(nn.Module):
         s_b_random = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
 
         # encode
-        c_a_prime = self.enc_s_a(x_a)
-        c_b_prime = self.enc_s_b(x_b)
+        c_a_prime = self.enc_c_a(x_a)
+        c_b_prime = self.enc_c_b(x_b)
         s_a_prime = self.enc_s_a(x_a)
         s_b_prime = self.enc_s_a(x_b)
 
