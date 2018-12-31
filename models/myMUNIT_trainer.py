@@ -80,6 +80,34 @@ class myMUNIT_Trainer(nn.Module):
             self.x_a_mask = x_a[:, :, :, 256:512]
             self.x_a_mask_patch = generateMaskPatch(self.x_a_mask,self.x_b_patch)
 
+    def test_encoded(self):
+        x_a = self.x_a
+        x_b = self.x_b
+        self.gen_opt.zero_grad()
+
+        # parameter of discriminator are not updated
+        self.set_requires_grad(self.dis_a, False)
+        self.set_requires_grad(self.dis_b, False)
+
+        # encode
+        s_a = self.enc_a(x_a)
+        s_b = self.enc_b(x_b)
+
+        # decode (cross domain)
+        x_ab = self.gen_a(x_b, s_a)
+        x_ba = self.gen_b(x_a, s_b)  # mask
+        return x_ba, x_ab
+    def test_sample(self):
+        x_a = self.x_a
+        x_b = self.x_b
+        # random_code
+        s_a_rand = Variable(torch.randn(1, self.style_dim, 1, 1).cuda())
+        s_b_rand = Variable(torch.randn(1, self.style_dim, 1, 1).cuda())
+        # generate image
+        x_ab_rand = self.gen_a(x_b, s_a_rand)
+        x_ba_rand = self.gen_b(x_a, s_b_rand)
+        return  x_ba_rand,x_ab_rand
+
     def forward(self):
         self.eval()
         # random_code

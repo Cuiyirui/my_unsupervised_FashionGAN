@@ -71,19 +71,20 @@ def get_all_data_loaders(conf):
                                                 new_size_b, new_size_b, new_size_b, num_workers, True)
     return train_loader_a, train_loader_b, test_loader_a, test_loader_b
 
-def get_test_data_loaders(conf):
-    batch_size = conf.batchsize
-    num_workers = conf.num_workers
-    new_size_a = 256
-    new_size_b = 256
-    height = 256
-    width = 512
-    data_a_root =  os.path.join(conf.input , conf.phase,'contour')
-    data_b_root = os.path.join(conf.input, conf.phase, 'ground')
+def get_test_data_loaders(opts,conf):
+    batch_size = opts.batchsize
+    num_workers = opts.num_workers
+    new_size = conf['new_size']
+    a_crop_height = conf['a_crop_image_height']
+    a_crop_width = conf['a_crop_image_width']
+    b_crop_height = conf['b_crop_image_height']
+    b_crop_width = conf['b_crop_image_width']
+    data_a_root =  os.path.join(opts.input , opts.phase,'contour')
+    data_b_root = os.path.join(opts.input, opts.phase, 'ground')
     test_loader_a = get_data_loader_folder(data_a_root, batch_size, False,
-                                              new_size_a, height, width, num_workers, True, False)
+                                           new_size, a_crop_height, a_crop_width, num_workers, True, False)
     test_loader_b = get_data_loader_folder(data_b_root, batch_size, False,
-                                              new_size_b, height, width,  num_workers, True, False)
+                                           new_size, b_crop_height, b_crop_width, num_workers, True, False)
 
     return test_loader_a, test_loader_b
 

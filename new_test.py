@@ -19,7 +19,7 @@ import numpy as np
 import sys
 #import tensorboardX
 import shutil
-torch.cuda.set_device(1)
+torch.cuda.set_device(0)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str,default='./configs/edges2single_shirts_folder.yaml', help="net configuration")
@@ -29,8 +29,8 @@ parser.add_argument('--E_path', type=str, default='./pretrained_models/latest_ne
 parser.add_argument('--G_path', type=str, default='./pretrained_models/latest_net_G.pt', help="checkpoint of generator")
 parser.add_argument('--D_path', type=str, default='./pretrained_models/latest_net_D.pt', help="checkpoint of discriminator")
 parser.add_argument("--continue_train",action="store_true")
-parser.add_argument('--phase',type=str,default='test_demo_stripe_patch',help='model phase')
-parser.add_argument('--input', type=str, default='./inputs/contour2shirt', help="input image path")
+parser.add_argument('--phase',type=str,default='test_demo_single',help='model phase')
+parser.add_argument('--input', type=str, default='./inputs/contour2shirt', help="input image path")  #modify hear
 parser.add_argument('--output_folder', type=str, help="output image path")
 parser.add_argument('--style', type=str, default='', help="style image path")
 parser.add_argument('--a2b', type=int, default=1, help="1 for a2b and others for b2a")
@@ -39,7 +39,7 @@ parser.add_argument('--num_style',type=int, default=10, help="number of styles t
 parser.add_argument('--batchsize', type=int, default=1, help="batch size when testing")
 parser.add_argument('--num_workers', type=int, default=8, help="num of workers")
 parser.add_argument('--synchronized', action='store_true', help="whether use synchronized style code or not")
-parser.add_argument('--trainer', type=str, default='myNet', help="MUNIT|UNIT|myMUNIT|myMUNIT_patch|myVAE_MUNIT_patch|myNet")
+parser.add_argument('--trainer', type=str, default='myMUNIT', help="MUNIT|UNIT|myMUNIT|myMUNIT_patch|myVAE_MUNIT_patch|myNet")
 
 opts = parser.parse_args()
 
@@ -61,7 +61,7 @@ config['vgg_model_path'] = opts.output_path
 trainer = create_model(opts,config)
 trainer.cuda()
 # creat data loader
-test_loader_a, test_loader_b = get_test_data_loaders(opts)
+test_loader_a, test_loader_b = get_test_data_loaders(opts,config)
 # whether continue train
 trainer.load_model_dict(opts)
 # create website
